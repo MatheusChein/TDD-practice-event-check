@@ -6,10 +6,15 @@ class CheckLastEventStatus {
   constructor (private readonly loadLastEventRepository: LoadLastEventRepository) {}
 
   async execute ({ groupId }: { groupId: string }): Promise<EventStatus> {
-    const event = await this.loadLastEventRepository.loadLastEvent({ groupId })
-    if (!event) return 'done'
-    const now = new Date()
-    return event.endDate >= now ? 'active' : 'inReview'
+    const event = await this.loadLastEventRepository.loadLastEvent({ groupId });
+    if (!event) return 'done';
+
+    const now = new Date();
+    if (event.endDate >= now) return 'active';
+
+    const reviewDurationInMs = event.reviewDurationInHours * 60 * 60 * 1000
+    const reviewDate = new Date(event.endDate.getTime() + reviewDurationInMs)
+    return now <= reviewDate ? 'inReview' : 'done'
   }
 }
 
@@ -159,5 +164,21 @@ describe('CheckLastEventStatus', () => {
     const status = await sut.execute({ groupId });
 
     expect(status).toBe('inReview');
+  });
+
+  it('should return status done when now is after review end time', async () => {
+    const { sut, loadLastEventRepository } = makeSut();
+
+    const reviewDurationInHours = 1;
+    const reviewDurationInMs = reviewDurationInHours * 60 * 60 * 1000;
+
+    loadLastEventRepository.output = {
+      endDate: new Date(new Date().getTime() - reviewDurationInMs - 1),
+      reviewDurationInHours
+    }
+
+    const status = await sut.execute({ groupId });
+
+    expect(status).toBe('done');
   });
 })
