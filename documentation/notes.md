@@ -10,6 +10,7 @@
 - Shotgun Surgery
 - Long Parameter List
 - Primitive Obsession
+- Bad Variable Naming
 
 # Design Patterns/Principles/Convetions
 - You Ain't Gonna Need It (YAGNI)
@@ -27,3 +28,4 @@
 - System Under Test (SUT)
 - Strategy Pattern
 - Factory Pattern
+- Clean Code
