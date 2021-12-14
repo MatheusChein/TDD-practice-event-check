@@ -1,20 +1,32 @@
 import { set, reset } from 'mockdate'
 
-type EventStatus = 'active' | 'inReview' | 'done'
+class EventStatus {
+  status: 'active' | 'inReview' | 'done';
+
+  constructor (event?: LoadEventOutput) {
+    if (!event) {
+      this.status = 'done';
+      return;
+    }
+
+    const now = new Date();
+    if (event.endDate >= now) {
+      this.status = 'active';
+      return
+    }
+
+    const reviewDurationInMs = event.reviewDurationInHours * 60 * 60 * 1000
+    const reviewDate = new Date(event.endDate.getTime() + reviewDurationInMs)
+    this.status = now <= reviewDate ? 'inReview' : 'done'
+  }
+}
 
 class CheckLastEventStatus {
   constructor (private readonly loadLastEventRepository: LoadLastEventRepository) {}
 
   async execute ({ groupId }: { groupId: string }): Promise<EventStatus> {
     const event = await this.loadLastEventRepository.loadLastEvent({ groupId });
-    if (!event) return 'done';
-
-    const now = new Date();
-    if (event.endDate >= now) return 'active';
-
-    const reviewDurationInMs = event.reviewDurationInHours * 60 * 60 * 1000
-    const reviewDate = new Date(event.endDate.getTime() + reviewDurationInMs)
-    return now <= reviewDate ? 'inReview' : 'done'
+    return new EventStatus(event)
   }
 }
 
@@ -102,7 +114,7 @@ describe('CheckLastEventStatus', () => {
     const { sut, loadLastEventRepository } = makeSut();
     loadLastEventRepository.output = undefined;
 
-    const status = await sut.execute({ groupId });
+    const { status } = await sut.execute({ groupId });
 
     expect(status).toBe('done');
   });
@@ -111,7 +123,7 @@ describe('CheckLastEventStatus', () => {
     const { sut, loadLastEventRepository } = makeSut();
     loadLastEventRepository.setEndDateAfterNow()
 
-    const status = await sut.execute({ groupId });
+    const { status } = await sut.execute({ groupId });
 
     expect(status).toBe('active');
   });
@@ -120,7 +132,7 @@ describe('CheckLastEventStatus', () => {
     const { sut, loadLastEventRepository } = makeSut();
     loadLastEventRepository.setEndDateEqualToNow()
 
-    const status = await sut.execute({ groupId });
+    const { status } = await sut.execute({ groupId });
 
     expect(status).toBe('active');
   });
@@ -129,7 +141,7 @@ describe('CheckLastEventStatus', () => {
     const { sut, loadLastEventRepository } = makeSut();
     loadLastEventRepository.setEndDateBeforeNow()
 
-    const status = await sut.execute({ groupId });
+    const { status } = await sut.execute({ groupId });
 
     expect(status).toBe('inReview');
   });
@@ -145,7 +157,7 @@ describe('CheckLastEventStatus', () => {
       reviewDurationInHours
     }
 
-    const status = await sut.execute({ groupId });
+    const { status } = await sut.execute({ groupId });
 
     expect(status).toBe('inReview');
   });
@@ -161,7 +173,7 @@ describe('CheckLastEventStatus', () => {
       reviewDurationInHours
     }
 
-    const status = await sut.execute({ groupId });
+    const { status } = await sut.execute({ groupId });
 
     expect(status).toBe('inReview');
   });
@@ -177,7 +189,7 @@ describe('CheckLastEventStatus', () => {
       reviewDurationInHours
     }
 
-    const status = await sut.execute({ groupId });
+    const { status } = await sut.execute({ groupId });
 
     expect(status).toBe('done');
   });
